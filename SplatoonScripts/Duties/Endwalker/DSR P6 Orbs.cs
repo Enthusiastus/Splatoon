@@ -149,6 +149,8 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
 
         void Off()
         {
+            safeSide = "w";
+            safeHeight = "n";
             Controller.GetRegisteredElements().Each(x => x.Value.Enabled = false);
         }
 
@@ -188,6 +190,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                 {
                     safeSide = "e";
                     EElement.Enabled = true;
+                    return;
                 }
                 WElement.Enabled = true;
             }
