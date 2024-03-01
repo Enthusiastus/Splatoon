@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
 using static Dalamud.Interface.Utility.Raii.ImRaii;
 
 namespace SplatoonScriptsOfficial.Duties.Endwalker
@@ -177,6 +178,10 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                 DuoLog.Information($"Safespot is: {safeHeight+safeSide+"spot"}");
                 var elem = Controller.GetElementByName(safeHeight + safeSide + "spot");
                 elem.Enabled = true;
+                Task.Delay(8500).ContinueWith(_ =>
+                {
+                    Off();
+                });
             } else if(Svc.Objects.Count(x => x is BattleChara c && c.DataId == ScarletPriceDataId) < 4)
             {
                 if (Hraesvelgr.Position.X < 95)
