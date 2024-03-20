@@ -8,11 +8,13 @@ using ECommons.Hooks;
 using ECommons.Hooks.ActionEffectTypes;
 using ECommons.ImGuiMethods;
 using ECommons.Logging;
+using ECommons.MathHelpers;
 using ImGuiNET;
 using Microsoft.VisualBasic.ApplicationServices;
 using PInvoke;
 using Splatoon;
 using Splatoon.SplatoonScripting;
+using Splatoon.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +26,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
     public class DSR_P6_Tethers : SplatoonScript
     {
         public override HashSet<uint> ValidTerritories => new() { 968 };
-        public override Metadata? Metadata => new(1, "Enthusiastus");
+        public override Metadata? Metadata => new(2, "Enthusiastus");
 
 
         Dictionary<string,int> tethers = new();
@@ -37,25 +39,46 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
 
         const uint NidhoggDataId = 12612;
         const uint HraesvelgrDataId = 12613;
-        bool positionDynamic = true;
+        bool firstTethers = true;
 
-        
+        int blueCounter = 0;
+        int redCounter = 0;
+
+        List<ConeData> Cones = new();
 
         BattleNpc? Nidhogg => Svc.Objects.FirstOrDefault(x => x is BattleNpc b && b.DataId == NidhoggDataId) as BattleNpc;
-        BattleNpc? Hraesvelgr => Svc.Objects.FirstOrDefault(x => x is BattleNpc b && b.DataId == NidhoggDataId) as BattleNpc;
+        BattleNpc? Hraesvelgr => Svc.Objects.FirstOrDefault(x => x is BattleNpc b && b.DataId == HraesvelgrDataId) as BattleNpc;
         string TestOverride = "";
 
         PlayerCharacter PC => TestOverride != "" && FakeParty.Get().FirstOrDefault(x => x.Name.ToString() == TestOverride) is PlayerCharacter pc ? pc : Svc.ClientState.LocalPlayer!;
         Vector2 Center = new(100, 100);
 
+        public class ConeData
+        {
+            public uint source;
+            public uint target;
+            public int color;
+            public Element? cone;
+        }
+
         public override void OnSetup()
         {
             var sespot = "{\"Name\":\"sespot\",\"Enabled\":false,\"refX\":105.5,\"refY\":117.5,\"radius\":0.5,\"color\":3372154880,\"thicc\":6.0,\"tether\":true}";
             var swspot = "{\"Name\":\"swspot\",\"Enabled\":false,\"refX\":94.5,\"refY\":117.5,\"radius\":0.5,\"color\":3372154880,\"thicc\":6.0,\"tether\":true}";
+            var bluecone = "{\"Name\":\"bluecone\",\"type\":5,\"refX\":103.03228,\"refY\":99.94743,\"radius\":45.0,\"coneAngleMin\":-7,\"coneAngleMax\":7,\"color\":3372154880,\"FillStep\":0.01,\"includeRotation\":true,\"AdditionalRotation\":3.1415927,\"Filled\":true}";
+            var redcone = "{\"Name\":\"redcone\",\"type\":5,\"refX\":103.03228,\"refY\":99.94743,\"radius\":45.0,\"coneAngleMin\":-7,\"coneAngleMax\":7,\"color\":3355443450,\"FillStep\":0.01,\"includeRotation\":true,\"AdditionalRotation\":3.1415927,\"Filled\":true}";
             var nospot = "{\"Name\":\"nospot\",\"Enabled\":false,\"refX\":100.0,\"refY\":107.5,\"radius\":0.5,\"color\":3372154880,\"thicc\":6.0,\"tether\":true}";
             SeElement = Controller.RegisterElementFromCode($"sespot", sespot);
             SwElement = Controller.RegisterElementFromCode($"swspot", swspot);
             NoElement = Controller.RegisterElementFromCode($"nospot", nospot);
+            for (var i = 0; i < 3; i++)
+            {
+                var b = Controller.RegisterElementFromCode($"BlueCone{i}", bluecone);
+                b.Enabled = false;
+                var r = Controller.RegisterElementFromCode($"RedCone{i}", redcone);
+                r.Enabled = false;
+            }
+            
         }
 
         private string findPosition(string job)
@@ -76,7 +99,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
             //DuoLog.Information($"I am {PC.ClassJob.GameData.NameEnglish} on {findPosition(PC.ClassJob.GameData.NameEnglish)}");
         }
 
-        private void enableSportByString(string pos)
+        private void enableSpotByString(string pos)
         {
             pos = pos.ToLower();
             switch(pos)
@@ -95,6 +118,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                     break;
 
             }
+            firstTethers = false;
             Task.Delay(9000).ContinueWith(_ =>
             {
                 Off();
@@ -115,7 +139,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                 if(anchorString == "Anchor")
                 {
                     isAnchor = true;
-                    enableSportByString(initialPosition);
+                    enableSpotByString(initialPosition);
                     //DuoLog.Information($"I am anchor... never move.");
                     return;
                 }
@@ -123,7 +147,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                 //DuoLog.Information($"I am partner with {tetherId} and my anchor has {partnerTetherId} should I move?");
                 if(tetherId != partnerTetherId)
                 {
-                    enableSportByString(initialPosition);
+                    enableSpotByString(initialPosition);
                     //DuoLog.Information($"Tethers are different, stay");
                     return;
                 }
@@ -133,7 +157,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                     {
                         if (initialPosition != p)
                         {
-                            enableSportByString(p);
+                            enableSpotByString(p);
                             return;
                         }
                     }
@@ -148,20 +172,41 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
             {
                 if (target.TryGetObject(out var pv) && pv is PlayerCharacter pvc)
                 {
-                    var pos = findPosition(pvc.ClassJob.GameData.NameEnglish);
-                    //DuoLog.Information($"{pos} has ice");
-                    tethers.Add(pos, 0);
-                    maybeDrawFirstChainTarget();
+                    if (firstTethers)
+                    {
+                        var pos = findPosition(pvc.ClassJob.GameData.NameEnglish);
+                        //DuoLog.Information($"{pos} has ice");
+                        tethers.Add(pos, 0);
+                        maybeDrawFirstChainTarget();
+                    } else
+                    {
+                        if (pvc != PC)
+                        {
+                            var e = Controller.GetElementByName("BlueCone" + blueCounter);
+                            Cones.Add(new() { source = Hraesvelgr.ObjectId, target = pvc.ObjectId, color = 0, cone = e });
+                            blueCounter++;
+                        }
+                    }
                 }
             // Fire Tether
             } else if(vfxPath == "vfx/channeling/eff/chn_fire_mouth01x.avfx")
             {
                 if (target.TryGetObject(out var pv) && pv is PlayerCharacter pvc)
                 {
-                    var pos = findPosition(pvc.ClassJob.GameData.NameEnglish);
-                    //DuoLog.Information($"{pos} has fire");
-                    tethers.Add(pos, 1);
-                    maybeDrawFirstChainTarget();
+                    if(firstTethers) { 
+                        var pos = findPosition(pvc.ClassJob.GameData.NameEnglish);
+                        //DuoLog.Information($"{pos} has fire");
+                        tethers.Add(pos, 1);
+                        maybeDrawFirstChainTarget();
+                    } else
+                    {
+                        if (pvc != PC)
+                        {
+                            var e = Controller.GetElementByName("RedCone" + redCounter);
+                            Cones.Add(new() { source = Nidhogg.ObjectId, target = pvc.ObjectId, color = 1, cone = e });
+                            redCounter++;
+                        }
+                    }
                 }
             }
         }
@@ -210,6 +255,10 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
         void Off()
         {
             tethers.Clear();
+            Cones.Each(c => c.cone.Enabled = false);
+            Cones.Clear();
+            blueCounter = 0;
+            redCounter = 0;
             NoElement.Enabled = false;
             SwElement.Enabled = false;
             SeElement.Enabled = false;
@@ -217,12 +266,33 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
 
         public override void OnUpdate()
         {
+            if (!firstTethers)
+            {
+                foreach (var x in Cones)
+                {
+                    if (x.source.TryGetObject(out var src) && src is BattleChara t && x.target.TryGetObject(out var tgt) && tgt is PlayerCharacter pc)
+                    {
+                        x.cone.Enabled = true;
+                        if (x.color == 0)
+                        {
+                            x.cone.AdditionalRotation = float.DegreesToRadians((180 + MathHelper.GetRelativeAngle(Hraesvelgr.Position, pc.Position)));
+                        }
+                        else
+                        {
+                            x.cone.AdditionalRotation = float.DegreesToRadians(180 + MathHelper.GetRelativeAngle(Nidhogg.Position, pc.Position));
+                        }
+                        x.cone.SetRefPosition(t.Position);
+                        //DuoLog.Information($"Found info to draw from {Thordan.Name} ({Thordan.ObjectId}) to {pc.Name} ({pc.ObjectId})");
+                    }
+                }
+            }
         }
 
         public override void OnDirectorUpdate(DirectorUpdateCategory category)
         {
             if (category.EqualsAny(DirectorUpdateCategory.Commence, DirectorUpdateCategory.Recommence, DirectorUpdateCategory.Wipe))
             {
+                firstTethers = true;
                 Off();
             }
         }
