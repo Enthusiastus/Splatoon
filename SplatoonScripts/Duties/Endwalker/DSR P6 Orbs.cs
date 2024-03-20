@@ -163,11 +163,11 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                 EElement.Enabled = false;
                 WElement.Enabled = false;
                 var prices = Svc.Objects.Where(x => x is BattleChara c && c.DataId == ScarletPriceDataId);
-                DuoLog.Information($"Found {prices.Count()} ScarletPrices!");
+                //DuoLog.Information($"Found {prices.Count()} ScarletPrices!");
                 
                 foreach(var p in prices)
                 {
-                    DuoLog.Information($"Price pos: X:{p.Position.X}Y:{p.Position.Y}Z:{p.Position.Z}!{p.GetPositionXZY()}");
+                    //DuoLog.Information($"Price pos: X:{p.Position.X}Y:{p.Position.Y}Z:{p.Position.Z}!{p.GetPositionXZY()}");
                     if(p.Position.Z < 94)
                     {
                         safeHeight = "s";
@@ -177,7 +177,7 @@ namespace SplatoonScriptsOfficial.Duties.Endwalker
                         break;
                     }
                 }
-                DuoLog.Information($"Safespot is: {safeHeight+safeSide+"spot"}");
+                //DuoLog.Information($"Safespot is: {safeHeight+safeSide+"spot"}");
                 var elem = Controller.GetElementByName(safeHeight + safeSide + "spot");
                 elem.Enabled = true;
                 Task.Delay(8500).ContinueWith(_ =>
