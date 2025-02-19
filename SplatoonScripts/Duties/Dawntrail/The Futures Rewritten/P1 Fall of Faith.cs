@@ -83,9 +83,9 @@ public class P1_Fall_of_Faith : SplatoonScript
     {
         return direction switch
         {
-            Direction.North => new Vector2(100, 85),
+            Direction.North => new Vector2(100, 94),
             Direction.East => new Vector2(115, 100),
-            Direction.South => new Vector2(100, 115),
+            Direction.South => new Vector2(100, 106),
             Direction.West => new Vector2(85, 100),
             _ => Vector2.Zero
         };
@@ -157,11 +157,19 @@ public class P1_Fall_of_Faith : SplatoonScript
                 _ => string.Empty
             };
 
+            var color = data.Value.Debuff switch
+            {
+                Debuff.Red => C.BaitColor1,
+                Debuff.Blue => C.BaitColor2,
+                _ => C.BaitColor1
+            };
+
             if (Controller.TryGetElementByName("Tether" + index, out var tether))
             {
                 tether.Enabled = true;
                 tether.refActorName = data.Key;
                 tether.overlayText = text;
+                tether.color = color.ToUint();
             }
 
             index++;
@@ -243,8 +251,8 @@ public class P1_Fall_of_Faith : SplatoonScript
 
     public class Config : IEzConfig
     {
-        public readonly Vector4 BaitColor1 = 0xFFFF00FF.ToVector4();
-        public readonly Vector4 BaitColor2 = 0xFFFFFF00.ToVector4();
+        public readonly Vector4 BaitColor1 = 0xFF0000FF.ToVector4();
+        public readonly Vector4 BaitColor2 = 0xFFFF0000.ToVector4();
 
         public InternationalString BlueTetherText = new() { Jp = "雷 散開" };
 
